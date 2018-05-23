@@ -1,0 +1,5 @@
+pytz
+faker
+haikunator
+pymongo
+bigchaindb_driver==0.5.0a4
