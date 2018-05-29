@@ -19,7 +19,7 @@ from haikunator import Haikunator
 color_list = ['teal', 'almond', 'aluminum', 'obsidian', 'caramel',
               'tawny', 'canary', 'coffee', 'coral', 'cream', 'lilac']
 bdb_root_url = 'http://localhost:9984'
-num_cars = 2
+num_cars = 25
 
 # Generate Sergio Tillenham's keypair
 sergio = generate_keypair()
@@ -57,10 +57,11 @@ for car_number in range(num_cars):
             'designer': 'Sergio Tillenham'
         }
     }
-    print(car_dict)
+    print('CREATE tx asset: {}'.format(car_dict))
     create_tx_metadata = {
         'notes': 'The CREATE transaction for one particular car (an asset).'
     }
+    print('CREATE tx metadata: {}'.format(create_tx_metadata))
     # Prepare the CREATE transaction.
     # Note that the creator (Sergio) is also the initial owner.
     prepared_create_tx = bdb.transactions.prepare(
@@ -93,7 +94,7 @@ for car_number in range(num_cars):
     asset_to_transfer = {'id': asset_id_of_car}
 
     transfer_tx_metadata = {
-        'notes': 'The initial transfer from Sergio to the first owner.',
+        'notes': 'The first transfer, from Sergio to the first owner.',
         'new_owner': first_owner_name,
         'transfer_time': serialized_sale_datetime
     }
