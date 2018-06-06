@@ -1,0 +1,1 @@
+{"options":{},"indexes":[{"v":2,"key":{"_id":1},"name":"_id_","ns":"bigchain.utxos"},{"v":2,"unique":true,"key":{"transaction_id":1,"output_index":1},"name":"utxo","ns":"bigchain.utxos"}],"uuid":"e91b9e0b855445ee96061d3fb15fbbbe"}

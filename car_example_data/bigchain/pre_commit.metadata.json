@@ -1,0 +1,1 @@
+{"options":{},"indexes":[{"v":2,"key":{"_id":1},"name":"_id_","ns":"bigchain.pre_commit"},{"v":2,"unique":true,"key":{"commit_id":1},"name":"pre_commit_id","ns":"bigchain.pre_commit"}],"uuid":"62c0985fff0d4596964b6027b8ddc47f"}
