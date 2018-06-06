@@ -4,13 +4,11 @@ for a blog post to illustrate various MongoDB queries.
 The data is for fictional custom cars designed by Sergio Tillenham.
 """
 
-import json
 import pytz
 import random
 import datetime
 
 from faker import Faker
-from bson import json_util  # Install using: pip install pymongo
 from bigchaindb_driver import BigchainDB
 from bigchaindb_driver.crypto import generate_keypair
 from haikunator import Haikunator
@@ -30,6 +28,7 @@ haikunator = Haikunator()
 fake = Faker()
 now_unaware = datetime.datetime.utcnow()  # now_unaware.tzinfo is None
 now = now_unaware.replace(tzinfo=pytz.UTC)  # now.tzinfo is UTC
+posix_now = int(now.timestamp())  # = int(POSIX timestamp of now)
 
 # External loop.
 # Each iteration is for a different car.
@@ -37,23 +36,28 @@ now = now_unaware.replace(tzinfo=pytz.UTC)  # now.tzinfo is UTC
 for car_number in range(num_cars):
     print('Generating data for car number {}'.format(car_number))
     print('----------------------------------')
-    car_name = haikunator.haikunate(token_length=0, delimiter=' ').title()
+    if car_number == 0:
+        # hard-wire the name and color of the first car
+        car_name = 'Restless Bonus'
+        car_color = 'cream'
+    else:
+        car_name = haikunator.haikunate(token_length=0, delimiter=' ').title()
+        car_color = secure_random.choice(color_list)
     # Make sure the datetime_created is in the UTC time zone.
     datetime_created = fake.date_time_between(start_date='-30y',
                                               end_date='-3y',
                                               tzinfo=pytz.UTC)
-    serialized_datetime_created = json.dumps(datetime_created,
-                                             default=json_util.default)
-    # serialized_datetime_created is a string that looks something like
-    # '{"$date": 1526650426444}'
-    # and after JSON serialization of that it looks like
-    # "{\"$date\": 1526650609774}"
+    # We write the datetime_created as a POSIX timestamp
+    # converted to an integer
+    # = the number of seconds since 00:00:00 UTC on Jan. 1, 1970
+    # not counting leap seconds
+    posix_datetime_created = int(datetime_created.timestamp())
     car_dict = {
         'data': {
             'type': 'car',
             'name': car_name,
-            'color': secure_random.choice(color_list),
-            'datetime_created': serialized_datetime_created,
+            'color': car_color,
+            'datetime_created': posix_datetime_created,
             'designer': 'Sergio Tillenham'
         }
     }
@@ -80,12 +84,9 @@ for car_number in range(num_cars):
 
     # Generate a random datetime for the sale.
     # Generate a random time delta from 0 to 2 years (730 days)
-    # and add that to datetime_created
-    # Remember to serialize the result.
-    time_to_sale = datetime.timedelta(days=random.randint(1, 730))
-    sale_datetime = datetime_created + time_to_sale
-    serialized_sale_datetime = json.dumps(sale_datetime,
-                                          default=json_util.default)
+    # and add that to datetime_created.
+    time_to_sale = random.randint(1, 730) * 86400
+    posix_sale_datetime = posix_datetime_created + time_to_sale
 
     # Generate some data about the first owner
     first_owner_name = fake.name()
@@ -96,7 +97,7 @@ for car_number in range(num_cars):
     transfer_tx_metadata = {
         'notes': 'The first transfer, from Sergio to the first owner.',
         'new_owner': first_owner_name,
-        'transfer_time': serialized_sale_datetime
+        'transfer_time': posix_sale_datetime
     }
     print('First TRANSFER tx metadata: {}'.format(transfer_tx_metadata))
     output = fulfilled_create_tx['outputs'][0]
@@ -122,7 +123,7 @@ for car_number in range(num_cars):
     sent_transfer_tx = bdb.transactions.send(fulfilled_transfer_tx)
     print('First TRANSFER tx id: {}'.format(fulfilled_transfer_tx['id']))
 
-    prev_sale_datetime = sale_datetime
+    prev_posix_sale_datetime = posix_sale_datetime
     prev_owner = first_owner
     prev_tx = fulfilled_transfer_tx
 
@@ -130,14 +131,12 @@ for car_number in range(num_cars):
     # Each iteration transfers the car to a new owner.
     while True:
         # Generate the datetime of the next sale
-        time_between_sales = datetime.timedelta(days=random.randint(1, 3650))
-        sale_datetime = prev_sale_datetime + time_between_sales
-        serialized_sale_datetime = json.dumps(sale_datetime,
-                                              default=json_util.default)
-        
+        time_between_sales = random.randint(1, 3650) * 86400
+        posix_sale_datetime = prev_posix_sale_datetime + time_between_sales
+
         # If the next sale happens in the future, then exit this internal loop
         # and go on to the next car.
-        if sale_datetime > now:
+        if posix_sale_datetime > posix_now:
             break
 
         # Generate some data about the new owner
@@ -148,7 +147,7 @@ for car_number in range(num_cars):
         transfer_tx_metadata = {
             'notes': None,
             'new_owner': new_owner_name,
-            'transfer_time': serialized_sale_datetime
+            'transfer_time': posix_sale_datetime
         }
         print('Next TRANSFER tx metadata: {}'.format(transfer_tx_metadata))
         output = prev_tx['outputs'][0]
@@ -172,9 +171,9 @@ for car_number in range(num_cars):
             private_keys=prev_owner.private_key
         )
         sent_transfer_tx = bdb.transactions.send(fulfilled_transfer_tx)
-        print('Next TRANFER transaction id: {}'.format(fulfilled_transfer_tx['id']))
-
-        prev_sale_datetime = sale_datetime
+        print('Next TRANFER transaction id: {}'.format(
+                  fulfilled_transfer_tx['id']))
+        prev_posix_sale_datetime = posix_sale_datetime
         prev_owner = new_owner
         prev_tx = fulfilled_transfer_tx
 
